@@ -41,7 +41,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = "https://navicare-plus.onrender.com";
 
 const FEATURES = [
   {
