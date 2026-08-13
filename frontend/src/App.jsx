@@ -383,9 +383,9 @@ function BottomNav({ page, setPage, palette, largeText }) {
   ];
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 flex justify-around z-20"
-      style={{ background: palette.paper, borderTop: `1px solid ${palette.line}`, padding: "8px 4px" }}
-    >
+  className="fixed bottom-0 left-0 right-0 flex z-20"
+  style={{ background: palette.paper, borderTop: `1px solid ${palette.line}`, padding: "6px 2px", justifyContent: "space-between", overflowX: "auto" }}
+>
       {items.map((it) => {
   const Icon = it.icon;
   const active = page === it.id;
@@ -420,8 +420,19 @@ function FeatureCard({ f, palette, largeText, onOpen, user }) {
   return (
     <button
       onClick={() => onOpen(f.id)}
-      className="text-left rounded-3xl p-5 flex flex-col gap-3 w-full break-words"
-      style={{ background: palette.card, border: `1px solid ${palette.line}` }}
+      style={{
+        textAlign: "left",
+        borderRadius: 24,
+        padding: 20,
+        width: "100%",
+        boxSizing: "border-box",
+        background: palette.card,
+        border: `1px solid ${palette.line}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        minHeight: 88,
+      }}
     >
       <div
         className="flex items-center justify-center rounded-2xl"
@@ -1818,6 +1829,62 @@ function AccountPage({ palette, largeText, user, setPage, onLogoutClick }) {
 // ---------------------------------------------------------------------
 
 function SOSPage({ palette, largeText, setPage, emergencyContact }) {
+  const [alarmOn, setAlarmOn] = useState(false);
+  const audioCtxRef = useRef(null);
+  const oscillatorRef = useRef(null);
+  const sirenIntervalRef = useRef(null);
+
+  const startAlarm = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("Emergency. I need help. Please assist me.");
+      utterance.lang = "en-GB";
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sawtooth";
+    gain.gain.value = 0.15;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+
+    let goingUp = true;
+    let freq = 500;
+    const interval = setInterval(() => {
+      freq = goingUp ? freq + 40 : freq - 40;
+      if (freq >= 900) goingUp = false;
+      if (freq <= 500) goingUp = true;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    }, 60);
+
+    audioCtxRef.current = ctx;
+    oscillatorRef.current = osc;
+    sirenIntervalRef.current = interval;
+    setAlarmOn(true);
+  };
+
+  const stopAlarm = () => {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (sirenIntervalRef.current) clearInterval(sirenIntervalRef.current);
+    if (oscillatorRef.current) {
+      try { oscillatorRef.current.stop(); } catch (e) {}
+    }
+    if (audioCtxRef.current) {
+      try { audioCtxRef.current.close(); } catch (e) {}
+    }
+    setAlarmOn(false);
+  };
+
+  useEffect(() => {
+    return () => stopAlarm();
+  }, []);
+
   return (
     <div className="px-5 pt-4 pb-28">
      
@@ -1831,6 +1898,21 @@ function SOSPage({ palette, largeText, setPage, emergencyContact }) {
       </h1>
 
      <div style={{ marginTop: 8 }}>
+  {!alarmOn ? (
+    <button
+      onClick={startAlarm}
+      style={{ width: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: palette.alert, color: "#fff", borderRadius: 16, padding: "18px 0", fontWeight: 700, fontSize: largeText ? "1.15rem" : "1rem", border: "none", marginBottom: 16 }}
+    >
+      🔊 Sound Alarm
+    </button>
+  ) : (
+    <button
+      onClick={stopAlarm}
+      style={{ width: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#1B2430", color: "#fff", borderRadius: 16, padding: "18px 0", fontWeight: 700, fontSize: largeText ? "1.15rem" : "1rem", border: "none", marginBottom: 16 }}
+    >
+      ⏹ Stop Alarm
+    </button>
+  )}
   <button
     onClick={() => { window.location.href = "tel:999"; }}
     style={{ width: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: palette.alert, color: "#fff", borderRadius: 16, padding: "18px 0", fontWeight: 700, fontSize: largeText ? "1.2rem" : "1.05rem", border: "none", marginBottom: 16 }}
@@ -1951,15 +2033,15 @@ export default function App() {
         />
 
         {page === "home" && (
-          <div className="px-5 pt-2 pb-28">
+  <div className="px-5 pt-2" style={{ paddingBottom: 60}}>
             <p style={{ color: palette.ink, fontSize: largeText ? "1.3rem" : "1.1rem", marginBottom: 16 }}>
               Hi! How can I help you today?
             </p>
-            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-              {FEATURES.map((f) => (
-                <FeatureCard key={f.id} f={f} palette={palette} largeText={largeText} onOpen={setPage} user={user} />
-              ))}
-            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+  {FEATURES.map((f) => (
+    <FeatureCard key={f.id} f={f} palette={palette} largeText={largeText} onOpen={setPage} user={user} />
+  ))}
+</div>
           </div>
         )}
 
